@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="de-CH">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arbeitszeit buchen - Countdown</title>
+  <style>
+    :root {
+      --bg-1: #0f172a;
+      --bg-2: #111827;
+      --card: rgba(255, 255, 255, 0.94);
+      --text: #111827;
+      --muted: #64748b;
+      --danger: #dc2626;
+      --warning: #f59e0b;
+      --blue: #2563eb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.45), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(220, 38, 38, 0.35), transparent 34%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    .page {
+      width: min(1180px, 94vw);
+      min-height: min(680px, 90vh);
+      background: var(--card);
+      border-radius: 36px;
+      padding: 54px;
+      box-shadow: 0 32px 90px rgba(0, 0, 0, 0.42);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 34px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 18px;
+      background: linear-gradient(90deg, var(--danger), var(--warning), var(--blue));
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      z-index: 1;
+    }
+
+    .logo {
+      max-width: 300px;
+      height: auto;
+    }
+
+    .deadline-badge {
+      padding: 16px 24px;
+      border-radius: 999px;
+      background: #fee2e2;
+      color: #991b1b;
+      font-size: clamp(20px, 2vw, 30px);
+      font-weight: 800;
+      border: 3px solid #fecaca;
+      white-space: nowrap;
+    }
+
+    main {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .warning-icon {
+      width: 118px;
+      height: 118px;
+      margin: 0 auto 18px;
+      border-radius: 50%;
+      background: var(--danger);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-size: 76px;
+      font-weight: 900;
+      box-shadow: 0 0 0 16px rgba(220, 38, 38, 0.14);
+      animation: pulse 1.4s infinite ease-in-out;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--danger);
+      font-size: clamp(48px, 6vw, 92px);
+      line-height: 1.02;
+      font-weight: 900;
+      letter-spacing: -2px;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin: 18px 0 32px;
+      color: var(--muted);
+      font-size: clamp(24px, 2.5vw, 38px);
+      font-weight: 700;
+    }
+
+    .countdown {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 18px;
+      width: min(820px, 100%);
+      margin: 0 auto;
+    }
+
+    .time-box {
+      background: #0f172a;
+      color: white;
+      border-radius: 24px;
+      padding: 24px 18px 20px;
+      box-shadow: inset 0 -8px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .number {
+      display: block;
+      font-size: clamp(46px, 6vw, 84px);
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .label {
+      display: block;
+      margin-top: 10px;
+      font-size: clamp(16px, 1.6vw, 24px);
+      color: #cbd5e1;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+      color: var(--muted);
+      font-size: clamp(18px, 1.6vw, 26px);
+      font-weight: 700;
+      z-index: 1;
+    }
+
+    .now { font-variant-numeric: tabular-nums; }
+
+    .expired .warning-icon,
+    .urgent .warning-icon {
+      animation: pulse-fast 0.75s infinite ease-in-out;
+    }
+
+    .urgent .time-box,
+    .expired .time-box {
+      background: #7f1d1d;
+    }
+
+    .expired h1::after {
+      content: " – Deadline erreicht";
+      display: block;
+      font-size: clamp(28px, 3vw, 44px);
+      margin-top: 12px;
+      color: #7f1d1d;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+
+    @keyframes pulse-fast {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 12px rgba(220, 38, 38, 0.18); }
+      50% { transform: scale(1.12); box-shadow: 0 0 0 28px rgba(220, 38, 38, 0.08); }
+    }
+
+    @media (max-width: 820px) {
+      .page {
+        padding: 34px;
+        border-radius: 24px;
+      }
+
+      header,
+      footer {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .countdown {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .deadline-badge {
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="page" aria-label="Arbeitszeit buchen Countdown">
+    <header>
+      <img class="logo" src="https://intersys.ch/wp-content/uploads/2023/06/Intersys_Logo_RGB-01.svg" alt="Intersys Logo" />
+      <div class="deadline-badge">Deadline: 30.04.2026, 18:00 Uhr</div>
+    </header>
+
+    <main>
+      <div>
+        <div class="warning-icon" aria-hidden="true">!</div>
+        <h1>Achtung bitte Zeit buchen</h1>
+        <p class="subtitle">Verbleibende Zeit bis zur Deadline</p>
+
+        <div class="countdown" role="timer" aria-live="polite">
+          <div class="time-box">
+            <span id="days" class="number">00</span>
+            <span class="label">Tage</span>
+          </div>
+          <div class="time-box">
+            <span id="hours" class="number">00</span>
+            <span class="label">Stunden</span>
+          </div>
+          <div class="time-box">
+            <span id="minutes" class="number">00</span>
+            <span class="label">Minuten</span>
+          </div>
+          <div class="time-box">
+            <span id="seconds" class="number">00</span>
+            <span class="label">Sekunden</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div>Bitte erledige die Buchung rechtzeitig.</div>
+      <div class="now">Aktuelle Zeit: <span id="current-time">--:--:--</span></div>
+    </footer>
+  </section>
+
+  <script>
+    // Deadline in Schweizer Zeit: 30.04.2026 18:00 Uhr
+    const deadline = new Date('2026-04-30T18:00:00+02:00');
+
+    const daysEl = document.getElementById('days');
+    const hoursEl = document.getElementById('hours');
+    const minutesEl = document.getElementById('minutes');
+    const secondsEl = document.getElementById('seconds');
+    const currentTimeEl = document.getElementById('current-time');
+
+    function pad(value) {
+      return String(value).padStart(2, '0');
+    }
+
+    function updateCountdown() {
+      const now = new Date();
+      const diff = deadline - now;
+
+      currentTimeEl.textContent = new Intl.DateTimeFormat('de-CH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: 'Europe/Zurich'
+      }).format(now);
+
+      document.body.classList.remove('urgent', 'expired');
+
+      if (diff <= 0) {
+        daysEl.textContent = '00';
+        hoursEl.textContent = '00';
+        minutesEl.textContent = '00';
+        secondsEl.textContent = '00';
+        document.body.classList.add('expired');
+        return;
+      }
+
+      if (diff <= 24 * 60 * 60 * 1000) {
+        document.body.classList.add('urgent');
+      }
+
+      const totalSeconds = Math.floor(diff / 1000);
+      const days = Math.floor(totalSeconds / (60 * 60 * 24));
+      const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / (60 * 60));
+      const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+      const seconds = totalSeconds % 60;
+
+      daysEl.textContent = pad(days);
+      hoursEl.textContent = pad(hours);
+      minutesEl.textContent = pad(minutes);
+      secondsEl.textContent = pad(seconds);
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+  </script>
+</body>
+</html>
