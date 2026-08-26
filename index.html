@@ -165,6 +165,42 @@
 
     .now { font-variant-numeric: tabular-nums; }
 
+    .daily-message {
+      display: none;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 34px 38px;
+      border-radius: 28px;
+      background: #eff6ff;
+      border: 3px solid #bfdbfe;
+      color: #1e3a8a;
+      font-size: clamp(28px, 3vw, 46px);
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    body.daily-mode .countdown,
+    body.daily-mode .subtitle,
+    body.daily-mode .warning-icon {
+      display: none;
+    }
+
+    body.daily-mode .daily-message {
+      display: block;
+    }
+
+    body.daily-mode h1 {
+      color: var(--blue);
+      font-size: clamp(42px, 5vw, 74px);
+      margin-bottom: 28px;
+    }
+
+    body.daily-mode .deadline-badge {
+      background: #dbeafe;
+      color: #1e3a8a;
+      border-color: #bfdbfe;
+    }
+
     .expired .warning-icon,
     .urgent .warning-icon {
       animation: pulse-fast 0.75s infinite ease-in-out;
@@ -219,14 +255,15 @@
   <section class="page" aria-label="Arbeitszeit buchen Countdown">
     <header>
       <img class="logo" src="https://intersys.ch/wp-content/uploads/2023/06/Intersys_Logo_RGB-01.svg" alt="Intersys Logo" />
-      <div class="deadline-badge">Deadline: 31.08.2026, 18:00 Uhr</div>
+      <div id="deadline-badge" class="deadline-badge">Deadline wird berechnet…</div>
     </header>
 
     <main>
       <div>
         <div class="warning-icon" aria-hidden="true">!</div>
-        <h1>Achtung bitte Zeit buchen</h1>
+        <h1 id="headline">Achtung bitte Zeit buchen</h1>
         <p class="subtitle">Verbleibende Zeit bis zur Deadline</p>
+        <div class="daily-message">Bitte die Arbeitszeit täglich buchen.</div>
 
         <div class="countdown" role="timer" aria-live="polite">
           <div class="time-box">
@@ -256,31 +293,112 @@
   </section>
 
   <script>
-    // Deadline in Schweizer Zeit: 31.08.2026 18:00 Uhr
-    const deadline = new Date('2026-08-31T18:00:00+02:00');
+    const TIME_ZONE = 'Europe/Zurich';
 
     const daysEl = document.getElementById('days');
     const hoursEl = document.getElementById('hours');
     const minutesEl = document.getElementById('minutes');
     const secondsEl = document.getElementById('seconds');
     const currentTimeEl = document.getElementById('current-time');
+    const deadlineBadgeEl = document.getElementById('deadline-badge');
+    const headlineEl = document.getElementById('headline');
 
     function pad(value) {
       return String(value).padStart(2, '0');
     }
 
+    function getZurichParts(date = new Date()) {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23'
+      }).formatToParts(date);
+
+      return Object.fromEntries(parts.map(part => [part.type, part.value]));
+    }
+
+    // Wandelt eine lokale Zeit in Europe/Zurich in einen echten Date-Zeitpunkt um.
+    function zurichDate(year, month, day, hour = 0, minute = 0, second = 0) {
+      const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
+      const guessDate = new Date(utcGuess);
+      const p = getZurichParts(guessDate);
+      const representedAsUtc = Date.UTC(
+        Number(p.year), Number(p.month) - 1, Number(p.day),
+        Number(p.hour), Number(p.minute), Number(p.second)
+      );
+      const offset = representedAsUtc - utcGuess;
+      return new Date(utcGuess - offset);
+    }
+
+    function getLastWorkday(year, month) {
+      // 0 = Sonntag, 6 = Samstag. Es werden nur Montag bis Freitag berücksichtigt.
+      const lastDayNumber = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+      for (let day = lastDayNumber; day >= 1; day--) {
+        const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+        if (weekday !== 0 && weekday !== 6) {
+          return day;
+        }
+      }
+    }
+
+    function getMonthlyDeadline(now = new Date()) {
+      const p = getZurichParts(now);
+      const year = Number(p.year);
+      const month = Number(p.month);
+      const currentDay = Number(p.day);
+      const lastWorkday = getLastWorkday(year, month);
+
+      return {
+        currentDay,
+        deadline: zurichDate(year, month, lastWorkday, 18, 0, 0),
+        year,
+        month,
+        lastWorkday
+      };
+    }
+
+    function formatDeadline(date) {
+      return new Intl.DateTimeFormat('de-CH', {
+        timeZone: TIME_ZONE,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date) + ' Uhr';
+    }
+
     function updateCountdown() {
       const now = new Date();
-      const diff = deadline - now;
+      const { currentDay, deadline } = getMonthlyDeadline(now);
 
       currentTimeEl.textContent = new Intl.DateTimeFormat('de-CH', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-        timeZone: 'Europe/Zurich'
+        timeZone: TIME_ZONE
       }).format(now);
 
-      document.body.classList.remove('urgent', 'expired');
+      document.body.classList.remove('daily-mode', 'urgent', 'expired');
+
+      // Vom 1. bis und mit 14. des Monats: noch kein Countdown.
+      if (currentDay < 15) {
+        document.body.classList.add('daily-mode');
+        deadlineBadgeEl.textContent = 'Countdown startet am 15. des Monats';
+        headlineEl.textContent = 'Arbeitszeit täglich buchen';
+        return;
+      }
+
+      headlineEl.textContent = 'Achtung bitte Zeit buchen';
+      deadlineBadgeEl.textContent = 'Deadline: ' + formatDeadline(deadline);
+
+      const diff = deadline - now;
 
       if (diff <= 0) {
         daysEl.textContent = '00';
@@ -296,9 +414,9 @@
       }
 
       const totalSeconds = Math.floor(diff / 1000);
-      const days = Math.floor(totalSeconds / (60 * 60 * 24));
-      const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / (60 * 60));
-      const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
 
       daysEl.textContent = pad(days);
